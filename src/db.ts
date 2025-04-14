@@ -1,5 +1,5 @@
 import { PrismaClient } from "@prisma/client";
-import { string, z } from "zod";
+import { z } from "zod";
 
 const client = new PrismaClient;
 
@@ -16,16 +16,30 @@ export async function Create_User(username: string , password:string, name: stri
 
     await client.user.create({
         data : {
-            name,
             username,
-            password
+            password,
+            name
         }
     });
     return true
+}
+
+export async function finduser(username: string , password: string) {
+    const user = await client.user.findFirst({
+        where:{
+            username: username
+        }
+    });
+    return user
 }
 
 export const UserSchema = z.object({
     name     : z.string().min(3).max(10),
     username : z.string().min(6).max(10),
     password : z.string().min(8).max(20)
-})
+});
+
+export const loginschema = z.object({
+    username : z.string().min(6).max(10),
+    password : z.string().min(8).max(20)
+});
