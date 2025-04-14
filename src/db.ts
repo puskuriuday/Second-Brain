@@ -3,7 +3,7 @@ import { string, z } from "zod";
 
 const client = new PrismaClient;
 
-export async function Create_User(username: string , password:string){
+export async function Create_User(username: string , password:string, name: string){
 
     const user = await client.user.findFirst({
         where:{
@@ -16,6 +16,7 @@ export async function Create_User(username: string , password:string){
 
     await client.user.create({
         data : {
+            name,
             username,
             password
         }
@@ -24,6 +25,7 @@ export async function Create_User(username: string , password:string){
 }
 
 export const UserSchema = z.object({
+    name     : z.string().min(3).max(10),
     username : z.string().min(6).max(10),
     password : z.string().min(8).max(20)
 })

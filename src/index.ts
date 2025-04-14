@@ -11,6 +11,7 @@ app.use(express.json());
 app.post('/api/v1/signup',async (req: Request ,res: Response) => {
     const username: string = req.body.username;
     const password: string = req.body.password;
+    const name: string = req.body.name;
     const validation = UserSchema.safeParse(req.body);
     if(!validation.success){
         res.status(411).json({
@@ -20,7 +21,7 @@ app.post('/api/v1/signup',async (req: Request ,res: Response) => {
     }
     try{
         const hpass = await bcrypt.hash(password,3);
-        const user = await Create_User(username , hpass);
+        const user = await Create_User(name , username , hpass);
         if(!user){
             res.status(403).json({
                 msg : "username already exits"
