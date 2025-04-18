@@ -2,7 +2,8 @@ import express , { Request , Response } from "express";
 import jwt from 'jsonwebtoken';
 import bcrypt from "bcrypt";
 import dotenv from "dotenv"
-import { Create_User, finduser, loginschema, UserSchema } from "./db";
+import { create_content, Create_User, finduser, loginschema, UserSchema } from "./db";
+import { auth } from "./middleware";
 
 const app = express();
 
@@ -82,23 +83,35 @@ app.post('/api/v1/signin',async (req: Request,res: Response) => {
     }
 });
 
-app.post('/api/v1/content',async (req,res) => {
+app.post('/api/v1/content', auth ,async (req: Request ,res: Response) => {
+    const { title , link , description } = req.body;
+    //@ts-ignore
+    const userid = req.id
+    try{
+        const content = await create_content(title,link, userid , description)
+        res.json({
+            msg : "content sucessfully created"
+        });
+    }catch(e){
+        res.json({
+            err : e
+        });
+    }
+});
+
+app.get('/api/v1/content', auth ,async (req: Request ,res: Response) => {
     
 });
 
-app.get('/api/v1/content',async (req,res) => {
+app.delete('/api/v1/content', auth ,async (req: Request ,res: Response) => {
     
 });
 
-app.delete('/api/v1/content',async (req,res) => {
-    
-});
-
-app.post('/api/v1/brain/Share', async (req,res) => {
+app.post('/api/v1/brain/Share', auth ,async (req: Request ,res: Response) => {
 
 });
 
-app.get('/api/v1/brain/:ShareLink',async (req,res) => {
+app.get('/api/v1/brain/:ShareLink',auth,async (req: Request ,res: Response) => {
 
 });
 

@@ -33,6 +33,17 @@ export async function finduser(username: string , password: string) {
     return user
 }
 
+export async function create_content(title: string , link: string , UserId: string , description?: string ){
+    await client.content.create({
+        data: {
+            title,
+            link,
+            description,
+            UserId
+        }
+    })
+}
+
 export const UserSchema = z.object({
     name     : z.string().min(3).max(10),
     username : z.string().min(6).max(10),

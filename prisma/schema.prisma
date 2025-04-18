@@ -22,14 +22,15 @@ model User {
 }
 
 model Content {
-  id      String   @id @default(uuid()) @db.Uuid
-  title   String
-  link    String
-  UserId  String   @db.Uuid
-  user    User     @relation(fields: [UserId], references: [id])
+  id          String   @id @default(uuid()) @db.Uuid
+  title       String
+  link        String
+  description String?
+  share       Boolean @default(false)
+  UserId      String   @db.Uuid
+  user        User     @relation(fields: [UserId], references: [id])
 }
 
-model tags {
-  id Int @default(autoincrement()) @id
-  tag String @unique
-}
+
+
+
