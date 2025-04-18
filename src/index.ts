@@ -2,7 +2,7 @@ import express , { Request , Response } from "express";
 import jwt from 'jsonwebtoken';
 import bcrypt from "bcrypt";
 import dotenv from "dotenv"
-import { create_content, Create_User, finduser, loginschema, UserSchema } from "./db";
+import { create_content, Create_User, deletecontent, editshare, findContent, finduser, loginschema, ShareLink, UserSchema } from "./db";
 import { auth } from "./middleware";
 
 const app = express();
@@ -100,19 +100,74 @@ app.post('/api/v1/content', auth ,async (req: Request ,res: Response) => {
 });
 
 app.get('/api/v1/content', auth ,async (req: Request ,res: Response) => {
+    //@ts-ignore
+    const userid = req.id as string;
+    try{
+        const content = await findContent(userid);
+        res.json({
+            content
+        });
+    }catch(e){
+        res.json({
+            msg:"server error"
+        });
+    }
     
 });
 
-app.delete('/api/v1/content', auth ,async (req: Request ,res: Response) => {
+app.delete('/api/v1/content/:contentid', auth ,async (req: Request ,res: Response) => {
+    const contentid = req.params.contentid as string;
+    //@ts-ignore
+    const userid = req.id as string;
+    try{
+        const del = await deletecontent(userid,contentid)
+        if(!del){
+            res.json({
+                msg : "content id not exits"
+            });
+            return
+        }
+        res.json({
+            msg : "deleted successfully",
+            content : del
+        });
+    }catch(e){
+        err : e
+    }
     
 });
 
 app.post('/api/v1/brain/Share', auth ,async (req: Request ,res: Response) => {
-
+    //@ts-ignore
+    const userid = req.id as string;
+    try{
+        const val = await editshare(userid)
+        res.json({
+            msg : val.share
+        })
+    }catch(e){
+        console.log(e);
+    }
 });
 
 app.get('/api/v1/brain/:ShareLink',auth,async (req: Request ,res: Response) => {
-
+    const username = req.params.ShareLink as string;
+    const shr = await ShareLink(username)
+    if(!shr){
+        res.json({
+            msg : "username not exits"
+        });
+    }
+    
+    if (shr == 'user_not_want'){
+        res.json({
+            msg : "user not wants to share"
+        });
+    }
+    res.json({
+        msg : "success",
+        content : shr
+    })
 });
 
 

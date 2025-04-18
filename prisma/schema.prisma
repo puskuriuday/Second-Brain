@@ -18,6 +18,7 @@ model User {
   name      String    @default("Undefined")
   username  String    @unique
   password  String
+  share     Boolean @default(false)
   contents  Content[]
 }
 
@@ -26,7 +27,6 @@ model Content {
   title       String
   link        String
   description String?
-  share       Boolean @default(false)
   UserId      String   @db.Uuid
   user        User     @relation(fields: [UserId], references: [id])
 }
