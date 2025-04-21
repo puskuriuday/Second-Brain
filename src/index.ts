@@ -4,7 +4,6 @@ import bcrypt from "bcrypt";
 import dotenv from "dotenv"
 import { createContent, CreateUser, deleteContent, editshare, findContent, findUser, loginschema, ShareLink, UserSchema , contentSchema } from "./db";
 import { auth } from "./middleware";
-import { error } from "console";
 
 const app = express();
 
@@ -76,7 +75,7 @@ app.post('/api/v1/signin',async (req: Request,res: Response) => {
     const { username , password } = validation.data;
 
     try{
-        const user = await findUser(username , password);
+        const user = await findUser(username);
         if (!user) {
             res.status(404).json({
                 error : {

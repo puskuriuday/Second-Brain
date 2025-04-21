@@ -26,7 +26,7 @@ model Content {
   id          String   @id @default(uuid()) @db.Uuid
   title       String
   link        String
-  description String?
+  description String 
   UserId      String   @db.Uuid
   user        User     @relation(fields: [UserId], references: [id])
 }

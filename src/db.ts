@@ -22,7 +22,7 @@ interface Content {
     title : string,
     link : string,
     description : string,
-    userId : string
+    UserId : string
 }
 
 export async function CreateUser(username: string , password:string, name: string): Promise<boolean>{
@@ -49,7 +49,7 @@ export async function CreateUser(username: string , password:string, name: strin
 }
 
 
-export async function findUser(username: string , password: string): Promise<User | null> {
+export async function findUser(username: string): Promise<User | null> {
     const user = await client.user.findFirst({
         where:{
             username: username
@@ -59,16 +59,16 @@ export async function findUser(username: string , password: string): Promise<Use
     return user
 }
 
-export async function createContent(title: string , link: string , UserId: string , description?: string ): Promise<void> {
+export async function createContent(title: string , link: string , UserId: string , description: string ): Promise<void> {
     // to avoid xss 
     const sanitizedData = {
         title: sanitizeHtml(title, sanitizeOptions),
         link: sanitizeHtml(link, sanitizeOptions),
-        description: description ? sanitizeHtml(description, sanitizeOptions) : undefined,
+        description: sanitizeHtml(description, sanitizeOptions),
       };
     // adds begin and commit better pratice
     await client.$transaction([
-        client.client.create({
+        client.content.create({
             data : {
                 ...sanitizedData,
                 UserId
@@ -91,7 +91,7 @@ export async function deleteContent(userid: string , contentid: string): Promise
         const del: Content = await client.content.delete({
             where: {
                 id : contentid,
-                userid : userid
+                UserId : userid
             }
         });
         return del
@@ -159,5 +159,5 @@ export const loginschema = z.object({
 export const contentSchema = z.object({
     title: z.string().min(1).max(50),
     link: z.string().url(),
-    description: z.string().max(500).optional()
+    description: z.string().max(500)
 });
