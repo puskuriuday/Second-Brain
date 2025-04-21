@@ -1,9 +1,10 @@
-import express , { Request , Response } from "express";
+import express , { NextFunction, Request , Response } from "express";
 import jwt from 'jsonwebtoken';
 import bcrypt from "bcrypt";
 import dotenv from "dotenv"
-import { create_content, Create_User, deletecontent, editshare, findContent, finduser, loginschema, ShareLink, UserSchema } from "./db";
+import { createContent, CreateUser, deleteContent, editshare, findContent, findUser, loginschema, ShareLink, UserSchema , contentSchema } from "./db";
 import { auth } from "./middleware";
+import { error } from "console";
 
 const app = express();
 
@@ -12,162 +13,240 @@ app.use(express.urlencoded({ extended: true }));
 
 dotenv.config()
 
+// Global error handler
+app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+    res.status(500).json({
+        error : {
+            msg : "Internal server error",
+            code : 500
+        }
+    });
+});
+
+
 app.post('/api/v1/signup',async (req: Request ,res: Response) => {
-    const username: string = req.body.username;
-    const password: string = req.body.password;
-    const name: string = req.body.name;
     const validation = UserSchema.safeParse(req.body);
     if(!validation.success){
-        res.status(411).json({
-            msg : "invlaid input"
+        res.status(400).json({
+            msg : "invlaid input",
+            code : 400
         });
         return
     }
+    const { username , password , name } = validation.data;
     try{
-        const hpass = await bcrypt.hash(password,4);
-        const user = await Create_User( username , hpass , name );
+        const hpass = await bcrypt.hash(password,8);
+        const user = await CreateUser( username , hpass , name );
         if(!user){
-            res.status(403).json({
-                msg : "username already exits"
+            res.status(409).json({
+                msg : "username already exits",
+                code : 409
             });
-        }else{
-            res.status(200).json({
-                msg : "signup sucess"
-            });
+            return
         }
-    }catch(e: any){
+
+        res.status(200).json({
+            msg : "signup sucess",
+            code : 200
+        });
+
+    }catch (error) {
         res.status(500).json({
-            msg: "server error"
-        })
+            error : {
+                msg : "failed to create user",
+                code : 500,
+                error
+            },
+        });
     }
 });
 
 app.post('/api/v1/signin',async (req: Request,res: Response) => {
-    const username: string = req.body.username;
-    const password: string = req.body.password;
     const validation = loginschema.safeParse(req.body);
     if(!validation.success){
-        res.status(411).json({
-            msg :"invalid input"
-        });
-        return
-    }
-    try{
-        const user = await finduser(username , password);
-        if(user == null){
-            res.status(403).json({
-                msg : "Username not found"
-            });
-            return
-        }if(user){
-            const verifypass = await bcrypt.compare(password,user.password);
-            if(!verifypass){
-                res.status(300).json({
-                    msg : "incorrect password"
-                });
-            }else{
-                const token = jwt.sign({
-                    id : user.id
-                },process.env.JWT_SECERET as string);
-                res.status(200).json({
-                    msg : "login successfully",
-                    token : token
-                });
+        res.status(400).json({
+            error : {
+                msg : "Invalid input",
+                code : 400
             }
-            
+        });
+        return;
+    }
+
+    const { username , password } = validation.data;
+
+    try{
+        const user = await findUser(username , password);
+        if (!user) {
+            res.status(404).json({
+                error : {
+                    msg : "Username not found",
+                    code : 404
+                },
+            });
+            return;
         }
-    }catch(e: any){
+        const IsvalidPass = await bcrypt.compare(password,user.password);
+        if (!IsvalidPass) {
+            res.status(401).json({
+                error : {
+                    msg : "Incorect password",
+                    code : 401,
+                }
+            });
+            return;
+        }
+
+        const token = jwt.sign({ userid : user.id}, process.env.JWT_SECERET!,{
+            expiresIn: "1h",
+        });
+
+        res.status(200).json({
+            msg : "Login successful",
+            code : 200,
+            token : token,
+        });
+    }catch (error) {
         res.status(500).json({
-            msg : "Server Error"
+            error: {
+                msg : "Failed to authenticate",
+                code : 500,
+                error
+            }
         });
     }
 });
 
 app.post('/api/v1/content', auth ,async (req: Request ,res: Response) => {
-    const { title , link , description } = req.body;
-    //@ts-ignore
-    const userid = req.id
+    const validation = contentSchema.safeParse(req.body);
+    if (!validation.success) {
+        res.status(400).json({
+            error : {
+                msg : "Invalid input",
+                code : 400
+            }
+        });
+        return;
+    }
+    const { title , link , description } = validation.data;
+    const userid = req.userId as string;
     try{
-        const content = await create_content(title,link, userid , description)
-        res.json({
+        await createContent(title,link, userid , description)
+        res.status(200).json({
             msg : "content sucessfully created"
         });
-    }catch(e){
-        res.json({
-            err : e
+    }catch (error) {
+        res.status(500).json({
+            error : {
+                msg :" Failed to create content",
+                code : 500,
+                error
+            }
         });
     }
 });
 
 app.get('/api/v1/content', auth ,async (req: Request ,res: Response) => {
-    //@ts-ignore
-    const userid = req.id as string;
-    try{
+
+    const userid = req.userId as string;
+    try {
         const content = await findContent(userid);
-        res.json({
+        res.status(200).json({
+            msg : "content fetched successfully",
             content
         });
-    }catch(e){
-        res.json({
-            msg:"server error"
+    }catch (error) {
+        res.status(500).json({
+            error : {
+                msg : 'Failed to get data',
+                code: 500,
+                error
+            },
         });
     }
-    
 });
 
 app.delete('/api/v1/content/:contentid', auth ,async (req: Request ,res: Response) => {
     const contentid = req.params.contentid as string;
-    //@ts-ignore
-    const userid = req.id as string;
+    const userid = req.userId as string;
     try{
-        const del = await deletecontent(userid,contentid)
+        const del = await deleteContent(userid,contentid)
         if(!del){
-            res.json({
-                msg : "content id not exits"
+            res.status(404).json({
+                msg : "content id not exits ",
+                code : 404
             });
             return
         }
-        res.json({
-            msg : "deleted successfully",
+        res.status(200).json({
+            msg : "content deleted successfully",
             content : del
         });
-    }catch(e){
-        err : e
+    }catch(error){
+        res.status(500).json({
+            error: {
+                msg : "Failed to delete content",
+                code : 500,
+                error
+            },
+        });
     }
     
 });
 
 app.post('/api/v1/brain/Share', auth ,async (req: Request ,res: Response) => {
-    //@ts-ignore
-    const userid = req.id as string;
+
+    const userid = req.userId as string;
     try{
         const val = await editshare(userid)
-        res.json({
-            msg : val.share
-        })
-    }catch(e){
-        console.log(e);
+        res.status(200).json({
+            msg : 'Share is updated',
+            share : val
+        });
+    }catch(error){
+        res.status(500).json({
+            error : {
+                msg : "Failed to update share settings",
+                code : 500,
+                error
+            }
+        });
     }
 });
 
-app.get('/api/v1/brain/:ShareLink',auth,async (req: Request ,res: Response) => {
-    const username = req.params.ShareLink as string;
-    const shr = await ShareLink(username)
-    if(!shr){
-        res.json({
-            msg : "username not exits"
+app.get('/api/v1/brain/:username',auth,async (req: Request ,res: Response) => {
+    const username = req.params.username as string;
+    try {
+        const result = await ShareLink(username);
+        if (result === false) {
+            res.status(404).json({
+                error: {
+                    msg : "Username not found",
+                    code: 404,
+                },
+            });
+        }
+        if (result === "user_not_want") {
+            res.status(403).json({
+                error: {
+                    msg : "User has disabled sharing",
+                    code : 403,
+                },
+            });
+        }
+        res.status(200).json({
+            msg : "Content fetched successfilly",
+            content: result
+        });
+    } catch (error) {
+        res.status(500).json({
+            error : {
+                msg : "Failed to get user content ",
+                code : 500,
+                error,
+            },
         });
     }
-    
-    if (shr == 'user_not_want'){
-        res.json({
-            msg : "user not wants to share"
-        });
-    }
-    res.json({
-        msg : "success",
-        content : shr
-    })
 });
 
 

@@ -1,16 +1,38 @@
 import { PrismaClient } from "@prisma/client";
 import { z } from "zod";
+import sanitizeHtml from 'sanitize-html';
 
 const client = new PrismaClient;
 
-export async function Create_User(username: string , password:string, name: string){
+const sanitizeOptions = {
+    allowedTags : [], // not allows any HTML tag as input
+    allowedAttributes : {}
+}
 
+interface User {
+    id : string,
+    username : string,
+    name: string,
+    password : string,
+    share : boolean
+}
+
+interface Content {
+    id : string,
+    title : string,
+    link : string,
+    description : string,
+    userId : string
+}
+
+export async function CreateUser(username: string , password:string, name: string): Promise<boolean>{
     const user = await client.user.findFirst({
         where:{
             username: username
         }
     });
-    if(user !== null) {
+
+    if (user) {
         return false
     } 
 
@@ -18,33 +40,44 @@ export async function Create_User(username: string , password:string, name: stri
         data : {
             username,
             password,
-            name
-        }
+            name,
+            share: false
+        },
     });
-    return true
+
+    return true;
 }
 
-export async function finduser(username: string , password: string) {
+
+export async function findUser(username: string , password: string): Promise<User | null> {
     const user = await client.user.findFirst({
         where:{
             username: username
         }
     });
+
     return user
 }
 
-export async function create_content(title: string , link: string , UserId: string , description?: string ){
-    await client.content.create({
-        data: {
-            title,
-            link,
-            description,
-            UserId
-        }
-    })
+export async function createContent(title: string , link: string , UserId: string , description?: string ): Promise<void> {
+    // to avoid xss 
+    const sanitizedData = {
+        title: sanitizeHtml(title, sanitizeOptions),
+        link: sanitizeHtml(link, sanitizeOptions),
+        description: description ? sanitizeHtml(description, sanitizeOptions) : undefined,
+      };
+    // adds begin and commit better pratice
+    await client.$transaction([
+        client.client.create({
+            data : {
+                ...sanitizedData,
+                UserId
+            },
+        }),
+    ]);
 }
 
-export async function findContent(userid: string){
+export async function findContent(userid: string): Promise<Content[] | null>{
     const content = await client.content.findMany({
         where:{
             UserId : userid
@@ -53,64 +86,64 @@ export async function findContent(userid: string){
     return content;
 }
 
-export async function deletecontent(userid: string , contentid: string) {
-    const con = await client.content.findFirst({
-        where:{
-            id:contentid
-        }
-    });
-    
-    if(!con){
-
-        return false;
+export async function deleteContent(userid: string , contentid: string): Promise<Content | null> {
+    try{
+        const del: Content = await client.content.delete({
+            where: {
+                id : contentid,
+                userid : userid
+            }
+        });
+        return del
+    }catch(error: any){
+        return null
     }
-    const del = await client.content.delete({
-        where: {
-            id : contentid,
-            UserId : userid
-        }
-    });
-    
-    return del;
 }
 
-export async function editshare(userid: string) {
-    const chk = await client.user.findFirst({
+export async function editshare(userid: string): Promise<boolean> {
+    const chk: User | null = await client.user.findFirst({
         where: {
             id: userid
         }
     });
-    const shrval = chk?.share
-    const share = await client.user.update({
+
+    if (!chk) {
+        throw new Error("User not found");
+    }
+
+    const updateShare: User = await client.user.update({
         where: {
             id: userid
         },
         data: {
-            share: !shrval
+            share: !chk.share
         }
     });
-    return share;
+    return updateShare.share;
 }
 
-export async function ShareLink(username: string):Promise<any> {
+export async function ShareLink(username: string):Promise<Content[] | false | 'user_not_want'> {
     const user = await client.user.findFirst({
         where: {
             username
         }
     });
     if (!user){
-        return false
+        return false;
     }
+
     if (!user.share){
-        return 'user_not_want' as string
+        return 'user_not_want';
     }
+
     const content = await client.content.findMany({
         where: {
             UserId : user.id
         }
     });
-    return content
+    return content;
 }
+
 
 export const UserSchema = z.object({
     name     : z.string().min(3).max(10),
@@ -121,4 +154,10 @@ export const UserSchema = z.object({
 export const loginschema = z.object({
     username : z.string().min(6).max(10),
     password : z.string().min(8).max(20)
+});
+
+export const contentSchema = z.object({
+    title: z.string().min(1).max(50),
+    link: z.string().url(),
+    description: z.string().max(500).optional()
 });
