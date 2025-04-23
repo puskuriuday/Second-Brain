@@ -96,7 +96,7 @@ app.post('/api/v1/signin',async (req: Request,res: Response) => {
             return;
         }
 
-        const token = jwt.sign({ userid : user.id}, process.env.JWT_SECERET!,{
+        const token = jwt.sign({ userid : user.id}, process.env.JWT_SECRET!,{
             expiresIn: "1h",
         });
 
