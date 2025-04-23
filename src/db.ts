@@ -59,10 +59,11 @@ export async function findUser(username: string): Promise<User | null> {
     return user
 }
 
-export async function createContent(title: string , link: string , UserId: string , description: string ): Promise<void> {
+export async function createContent(title: string , type: string , link: string , UserId: string , description: string ): Promise<void> {
     // to avoid xss 
     const sanitizedData = {
         title: sanitizeHtml(title, sanitizeOptions),
+        type: sanitizeHtml(type, sanitizeOptions),
         link: sanitizeHtml(link, sanitizeOptions),
         description: sanitizeHtml(description, sanitizeOptions),
       };
@@ -158,6 +159,7 @@ export const loginschema = z.object({
 
 export const contentSchema = z.object({
     title: z.string().min(1).max(50),
+    type: z.string().min(1).max(20),
     link: z.string().url(),
     description: z.string().max(500)
 });

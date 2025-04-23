@@ -127,10 +127,10 @@ app.post('/api/v1/content', auth ,async (req: Request ,res: Response) => {
         });
         return;
     }
-    const { title , link , description } = validation.data;
+    const { title , type , link , description } = validation.data;
     const userid = req.userId as string;
     try{
-        await createContent(title,link, userid , description)
+        await createContent(title, type, link, userid, description)
         res.status(200).json({
             msg : "content sucessfully created"
         });
